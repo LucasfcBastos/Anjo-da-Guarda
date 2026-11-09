@@ -7,6 +7,7 @@ import 'package:sensors_plus/sensors_plus.dart';
 import '../models/emergency_alert.dart';
 import '../services/fall_detector.dart';
 import '../services/location_service.dart';
+import '../services/motion_source.dart';
 import '../services/notification_service.dart';
 
 /// Leitura do acelerômetro exibida na tela.
@@ -64,19 +65,38 @@ class SafetyController extends ChangeNotifier {
   void startMonitoring() {
     if (_monitoring) return;
     _sensorError = null;
-    _sensorSub =
-        accelerometerEventStream(
-          samplingPeriod: SensorInterval.gameInterval, // ~50 Hz
-        ).listen(
-          _onAccelerometer,
-          onError: (Object e) {
-            _sensorError = 'Acelerômetro indisponível neste aparelho.';
-            stopMonitoring();
-          },
-          cancelOnError: true,
-        );
     _monitoring = true;
+    if (motionPermissionRequired) {
+      // Navegador do iPhone: a permissão é pedida já, dentro do toque no
+      // botão; ao abrir o app (sem toque) o iOS recusa e pedimos o toque.
+      requestMotionPermission().then((granted) {
+        if (!_monitoring || _sensorSub != null) return;
+        if (granted) {
+          _listenAccelerometer();
+        } else {
+          _sensorError =
+              'Toque no botão para ligar o sensor e permita o acesso a '
+              '"Movimento e orientação".';
+          stopMonitoring();
+        }
+      });
+    } else {
+      _listenAccelerometer();
+    }
     notifyListeners();
+  }
+
+  void _listenAccelerometer() {
+    _sensorSub = motionEvents().listen(
+      _onAccelerometer,
+      onError: (Object e) {
+        _sensorError = e is MotionUnavailable
+            ? e.message
+            : 'Acelerômetro indisponível neste aparelho.';
+        stopMonitoring();
+      },
+      cancelOnError: true,
+    );
   }
 
   void stopMonitoring() {

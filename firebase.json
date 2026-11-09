@@ -1,1 +1,93 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"guardianangel-98efb","appId":"1:1038469501556:android:01385580397a3b1d37f721","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"guardianangel-98efb","configurations":{"android":"1:1038469501556:android:01385580397a3b1d37f721","ios":"1:1038469501556:ios:071bac2643ec987037f721","web":"1:1038469501556:web:362b4f1b3b780d7e37f721"}}}}},"firestore":{"rules":"firebase/firestore.rules","indexes":"firebase/firestore.indexes.json"},"functions":[{"source":"firebase/functions","codebase":"default","ignore":["node_modules",".git","*.local"]}],"emulators":{"firestore":{"port":8080},"auth":{"port":9099},"ui":{"enabled":false},"singleProjectMode":true}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "guardianangel-98efb",
+          "appId": "1:1038469501556:android:01385580397a3b1d37f721",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "guardianangel-98efb",
+          "configurations": {
+            "android": "1:1038469501556:android:01385580397a3b1d37f721",
+            "ios": "1:1038469501556:ios:071bac2643ec987037f721",
+            "web": "1:1038469501556:web:362b4f1b3b780d7e37f721"
+          }
+        }
+      }
+    }
+  },
+  "firestore": {
+    "rules": "firebase/firestore.rules",
+    "indexes": "firebase/firestore.indexes.json"
+  },
+  "functions": [
+    {
+      "source": "firebase/functions",
+      "codebase": "default",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "*.local"
+      ]
+    }
+  ],
+  "emulators": {
+    "firestore": {
+      "port": 8080
+    },
+    "auth": {
+      "port": 9099
+    },
+    "ui": {
+      "enabled": false
+    },
+    "singleProjectMode": true
+  },
+  "hosting": {
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "rewrites": [
+      {
+        "source": "**",
+        "destination": "/index.html"
+      }
+    ],
+    "headers": [
+      {
+        "source": "/",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      },
+      {
+        "source": "/@(index.html|flutter_bootstrap.js|flutter_service_worker.js|version.json|firebase-messaging-sw.js|manifest.json)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      },
+      {
+        "source": "**",
+        "headers": [
+          {
+            "key": "Permissions-Policy",
+            "value": "geolocation=(self), accelerometer=(self), gyroscope=(self)"
+          }
+        ]
+      }
+    ]
+  }
+}

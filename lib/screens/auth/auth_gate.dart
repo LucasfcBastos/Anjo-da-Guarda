@@ -68,6 +68,12 @@ class _ProfileGateState extends State<_ProfileGate> {
   DocumentSnapshot<Map<String, dynamic>>? _snapshot;
   Object? _error;
 
+  /// Ligado se o servidor não responder em [_slowAfter]
+  /// (sem internet ou banco de dados indisponível).
+  bool _slow = false;
+  Timer? _slowTimer;
+  static const _slowAfter = Duration(seconds: 15);
+
   /// O perfil só muda de tipo ao trocar de conta; guardamos o último
   /// para não recriar a interface a cada atualização do documento.
   UserProfile? _profile;
@@ -80,7 +86,14 @@ class _ProfileGateState extends State<_ProfileGate> {
 
   void _listen() {
     _sub?.cancel();
-    setState(() => _error = null);
+    _slowTimer?.cancel();
+    setState(() {
+      _error = null;
+      _slow = false;
+    });
+    _slowTimer = Timer(_slowAfter, () {
+      if (mounted) setState(() => _slow = true);
+    });
     _sub = widget.auth
         .profileSnapshots(widget.user.uid)
         .listen(
@@ -96,6 +109,7 @@ class _ProfileGateState extends State<_ProfileGate> {
   @override
   void dispose() {
     _sub?.cancel();
+    _slowTimer?.cancel();
     super.dispose();
   }
 
@@ -127,6 +141,16 @@ class _ProfileGateState extends State<_ProfileGate> {
         if (registering ||
             snap == null ||
             (!snap.exists && snap.metadata.isFromCache)) {
+          if (_slow && !registering) {
+            return _GateMessage(
+              message:
+                  'O servidor não respondeu. Verifique a internet e tente de '
+                  'novo. Se continuar, o banco de dados do app pode estar '
+                  'indisponível.',
+              onRetry: _listen,
+              onSignOut: widget.auth.signOut,
+            );
+          }
           return const _Loading();
         }
         return ProfileSetupScreen(auth: widget.auth, user: widget.user);

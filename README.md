@@ -250,3 +250,16 @@ alertas em tempo real com o app do cuidador aberto.
 flutter test                                   # app (inclui fluxo idoso↔cuidador)
 cd firebase/rules-tests && npm install && npm test   # regras no emulador (requer Java)
 ```
+
+### Versão Web (Firebase Hosting)
+
+Publicada em **https://guardianangel-98efb.web.app** (HTTPS, plano gratuito).
+
+```bash
+flutter build web --release --no-wasm-dry-run
+firebase deploy --only hosting --project guardianangel-98efb
+```
+
+No navegador a localização funciona (o navegador pede permissão). O
+acelerômetro só funciona no **Chrome do Android**; no Safari (iPhone), Firefox
+e computador ele não existe e aparece 0,00. Para o idoso, use o app instalado.

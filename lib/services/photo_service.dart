@@ -1,5 +1,4 @@
-import 'dart:io';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -42,7 +41,8 @@ class PhotoService {
   /// No Android o sistema pode encerrar o app enquanto a câmera está aberta
   /// (pouca memória). Esta chamada recupera a foto tirada nesse caso.
   Future<String?> recoverLostPhoto() async {
-    if (!Platform.isAndroid) return null; // só existe no Android
+    // Só existe no Android (app instalado).
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return null;
     final response = await _picker.retrieveLostData();
     if (response.isEmpty) return null;
     return response.file?.path;

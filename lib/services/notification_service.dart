@@ -131,7 +131,7 @@ class NotificationService {
 
   /// Pede a permissão de notificações (Android 13+ e iOS).
   Future<bool> requestPermission() async {
-    if (Platform.isIOS) {
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
       return await _ios?.requestPermissions(
             alert: true,
             badge: true,
@@ -145,7 +145,7 @@ class NotificationService {
   /// Alarmes exatos deixam o lembrete tocar no minuto certo (Android 12+).
   /// No iOS não existe essa restrição: os lembretes já são pontuais.
   Future<bool> canScheduleExactAlarms() async {
-    if (!Platform.isAndroid) return true;
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return true;
     return await _android?.canScheduleExactNotifications() ?? false;
   }
 
@@ -322,7 +322,7 @@ class NotificationService {
   Future<List<DarwinNotificationAttachment>?> _iosPhotoAttachment(
     String photoPath,
   ) async {
-    if (!Platform.isIOS) return null;
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.iOS) return null;
     try {
       final temp = await getTemporaryDirectory();
       final copy = await File(photoPath).copy(
