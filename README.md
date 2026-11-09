@@ -5,6 +5,11 @@ acelerômetro, pergunta "Você está bem?" e, sem resposta em 30 segundos, acion
 um alerta de emergência com a localização GPS. Também cadastra remédios por
 foto e agenda lembretes diários.
 
+Com o Firebase, funciona como um **sistema idoso ↔ cuidador**: cada pessoa
+cria uma conta (Idoso ou Cuidador), o idoso autoriza o cuidador por um
+código, e o cuidador acompanha em tempo real o status, a localização, as
+quedas e os pedidos de ajuda. Veja [Sistema idoso/cuidador](#sistema-idosocuidador-firebase).
+
 ## Como executar
 
 Uma única base de código Flutter roda em **Android e iPhone**. Use sempre um
@@ -36,8 +41,8 @@ Requisitos: macOS com Xcode atualizado, iPhone com iOS 15+ e um Apple ID
 1. No Mac: `flutter pub get` e depois `open ios/Runner.xcworkspace`.
 2. No Xcode, selecione o alvo **Runner** → aba **Signing & Capabilities**:
    - marque *Automatically manage signing* e escolha seu **Team** (Apple ID);
-   - se o Xcode reclamar do identificador, troque o **Bundle Identifier**
-     (`com.rotaverde.rotaVerde`) por um único, ex.: `com.seunome.anjodaguarda`.
+   - o **Bundle Identifier** é `com.anjodaguarda.app` (registrado no Firebase).
+     Se trocar, registre o novo ID com `flutterfire configure`.
 3. Conecte o iPhone, confie no computador e ative o **Modo de Desenvolvedor**
    (Ajustes → Privacidade e Segurança → Modo de Desenvolvedor).
 4. Rode `flutter run` no terminal (ou ▶ no Xcode).
@@ -143,9 +148,8 @@ emergência, busca o GPS e mostra a mensagem para a família.
 
 ## Limitações
 
-- O alerta familiar é demonstrado no app (mensagem com dados e link do mapa,
-  que pode ser copiada). Não há envio automático por SMS/WhatsApp porque isso
-  exige um serviço externo que não está configurado.
+- Cuidadores vinculados recebem os alertas pelo app. Não há envio automático
+  por SMS/WhatsApp; a mensagem do alerta pode ser copiada e enviada à mão.
 - A detecção de queda funciona com o app aberto. Em segundo plano o iOS pausa
   o app (e o Android pode limitar os sensores); monitorar com o app fechado
   exigiria um serviço em primeiro plano no Android e não é permitido no iOS
@@ -154,3 +158,95 @@ emergência, busca o GPS e mostra a mensagem para a família.
   avisa no fim da contagem; o GPS é obtido quando o app é aberto novamente.
 - No Android 14+, "Alarmes e lembretes" vem desligado: a tela de remédios
   mostra um botão para ativar. Sem isso o lembrete pode atrasar alguns minutos.
+
+## Sistema idoso/cuidador (Firebase)
+
+Projeto Firebase: **GuardianAngel** (`guardianangel-98efb`). Os apps Android e
+iOS (`com.anjodaguarda.app`) já estão registrados; a configuração está em
+`lib/firebase_options.dart` e `android/app/google-services.json`.
+
+### Como funciona
+
+| Etapa | O que acontece |
+|---|---|
+| Cadastro | Nome, e-mail, senha e tipo de conta (Idoso/Cuidador). Perfil em `users/{uid}`. O tipo não pode ser trocado depois. |
+| Vinculação | Idoso: aba **Família → Gerar código** (6 caracteres, vale 30 min). Cuidador: **Vincular idoso** → digita o código → pedido *pendente*. Idoso: **Autorizar**. Só então o cuidador vê os dados. |
+| Idoso | O app de sempre + painel com GPS, localização e conexão com o cuidador. Envia status e posição para `elders/{uid}` (no máx. a cada 30 s ao se mover, e um sinal de vida a cada 5 min). Quedas e pedidos de ajuda viram `elders/{uid}/alerts`. |
+| Cuidador | Lista de idosos com situação, última localização e horário; mapa (OpenStreetMap), botão para o Google Maps, alertas ativos com "Marcar como atendido" e histórico. |
+| Alertas | Com o app do cuidador aberto, chegam em tempo real pelo Firestore com notificação local. Se o prazo de 30 s passa sem resposta do celular do idoso, o app do cuidador já trata como emergência. Com o app fechado, só chegam por push (veja abaixo). |
+
+Segurança (`firebase/firestore.rules`): cada um só lê o próprio perfil; só o
+idoso gera códigos; o pedido exige código válido e não expirado; só o idoso
+aprova; o cuidador só lê dados de idosos com vínculo **ativo** e só pode marcar
+alertas como atendidos; qualquer um dos dois desfaz o vínculo.
+
+### Configuração do Firebase (uma vez)
+
+1. **Firestore**: console → Firestore Database → *Criar banco de dados* →
+   modo produção → local **southamerica-east1 (São Paulo)**.
+   (Se escolher outra região, troque `REGION` em `firebase/functions/index.js`.)
+2. **Authentication**: Sign-in method → ative **E-mail/senha**.
+3. Publique regras e índices (grátis):
+   ```bash
+   firebase deploy --only firestore --project guardianangel-98efb
+   ```
+
+### Push com o app do cuidador fechado (opcional, plano Blaze)
+
+O envio de push precisa de um servidor confiável: as Cloud Functions em
+`firebase/functions` (`alertPush` envia o push quando um alerta muda;
+`unansweredFalls` roda a cada minuto e marca como emergência quedas sem
+resposta, mesmo que o celular do idoso tenha ficado sem internet).
+
+- Exige o plano **Blaze** (cartão de crédito). Com poucos usuários o uso fica
+  dentro da cota gratuita (2 milhões de execuções/mês; o FCM é gratuito; o
+  agendador tem 3 tarefas grátis por conta). Recomendo criar um **alerta de
+  orçamento** (ex.: R$ 10) no Google Cloud.
+- Deploy:
+  ```bash
+  cd firebase/functions && npm install
+  firebase deploy --only functions --project guardianangel-98efb
+  ```
+- **iPhone**: push exige conta paga da Apple (US$ 99/ano): no Xcode adicione as
+  capacidades *Push Notifications* e *Background Modes → Remote notifications*,
+  crie uma chave APNs no portal da Apple e envie-a em Firebase → Configurações
+  do projeto → Cloud Messaging. Sem isso, o iPhone do cuidador recebe alertas
+  só com o app aberto (o app avisa isso na tela).
+
+Sem o Blaze, todo o resto funciona: login, vinculação, localização, histórico e
+alertas em tempo real com o app do cuidador aberto.
+
+### Testar com dois celulares
+
+1. Instale o app nos dois (`flutter run` em cada um, ou o mesmo APK).
+2. **Celular A**: Criar conta → **Idoso**. Aceite notificações e localização.
+3. **Celular B**: Criar conta → **Cuidador**.
+4. A: aba **Família → Gerar código**. B: **Vincular idoso** → digite o código.
+5. A: aparece "Pedido de vínculo" → **Autorizar**.
+6. B: o idoso aparece com "Monitoramento ativo", localização e horário; toque
+   para ver o mapa.
+7. Queda: em A, solte o celular numa cama e deixe parado. B recebe
+   "Possível queda". Em A toque **ESTOU BEM** → B recebe "está bem".
+   Repita sem responder → em ~30 s B recebe **EMERGÊNCIA** com o local.
+8. A: **PEDIR AJUDA** → B recebe "pediu ajuda" → **Marcar como atendido**.
+9. Desfazer: A remove o cuidador na aba Família → B perde o acesso na hora.
+
+### Segundo plano: o que é real
+
+- **Android**: com o idoso logado, a localização segue em segundo plano por um
+  serviço em primeiro plano (notificação fixa "Anjo da Guarda ativo"). O
+  sistema ou o próprio usuário ainda podem encerrar o app; alguns fabricantes
+  (Xiaomi, Samsung etc.) são agressivos — desative a otimização de bateria do
+  app.
+- **iPhone**: com o app em segundo plano a localização continua (seta azul),
+  mas o iOS pode encerrar o app; fechado pelo usuário, nada é enviado.
+- A detecção de queda depende do acelerômetro com o app vivo. Com o app
+  fechado não há detecção. O cuidador vê "Sem atualização recente" quando o
+  celular do idoso fica mais de 15 min sem dar notícias.
+
+### Testes
+
+```bash
+flutter test                                   # app (inclui fluxo idoso↔cuidador)
+cd firebase/rules-tests && npm install && npm test   # regras no emulador (requer Java)
+```

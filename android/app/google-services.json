@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1038469501556",
+    "project_id": "guardianangel-98efb",
+    "storage_bucket": "guardianangel-98efb.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1038469501556:android:01385580397a3b1d37f721",
+        "android_client_info": {
+          "package_name": "com.anjodaguarda.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAjw3svkuFGx9-o4oQtBXfDvu5bkUtS64k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

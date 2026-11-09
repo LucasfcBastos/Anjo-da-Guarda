@@ -16,5 +16,5 @@
         ".cache": true,
         "retool.config.json": true
     },
-    "cmake.sourceDirectory": "/home/lucas-lbf/Codigos/Git/RotaVerde/RovaVerde/linux"
+    "cmake.sourceDirectory": "/home/lucas-lbf/Codigos/Git/Anjo/Anjo-da-Guarda/linux/flutter"
 }

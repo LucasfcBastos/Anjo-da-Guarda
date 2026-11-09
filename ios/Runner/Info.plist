@@ -32,7 +32,14 @@
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>O Anjo da Guarda pode usar fotos para cadastrar seus remédios.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>O Anjo da Guarda usa sua localização para mostrá-la no alerta de emergência, caso você caia e não responda.</string>
+	<string>O Anjo da Guarda usa sua localização no alerta de emergência e a envia aos cuidadores que você autorizou.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>O Anjo da Guarda envia sua localização aos cuidadores que você autorizou, inclusive com o app em segundo plano.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+		<string>remote-notification</string>
+	</array>
 	<key>NSMotionUsageDescription</key>
 	<string>O Anjo da Guarda usa os sensores de movimento para detectar possíveis quedas.</string>
 	<key>UIApplicationSceneManifest</key>

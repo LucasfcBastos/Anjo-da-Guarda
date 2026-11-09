@@ -42,6 +42,25 @@ class NotificationService {
     importance: Importance.high,
   );
 
+  /// Alertas recebidos pelo cuidador. O mesmo ID de canal é usado
+  /// pelas notificações push enviadas pelo servidor (Cloud Functions).
+  static const caregiverChannelId = 'cuidador_alertas';
+  static const _caregiverChannel = AndroidNotificationChannel(
+    caregiverChannelId,
+    'Alertas dos idosos',
+    description: 'Quedas e pedidos de ajuda dos idosos que você acompanha',
+    importance: Importance.max,
+  );
+
+  /// Android: ID 0 + "tag" do alerta, igual ao push do servidor (FCM),
+  /// para o mesmo alerta não aparecer duas vezes.
+  /// iOS: não há tag; cada alerta ganha um ID próprio (fora da faixa
+  /// usada pelos lembretes de remédio).
+  static int caregiverAlertId(String tag) =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS
+      ? 1200000000 + (tag.hashCode & 0x7fffffff) % 900000000
+      : 0;
+
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
 
@@ -104,6 +123,7 @@ class NotificationService {
       _fallChannel,
       _emergencyChannel,
       _medicationChannel,
+      _caregiverChannel,
     ]) {
       await _android?.createNotificationChannel(channel);
     }
@@ -223,6 +243,42 @@ class NotificationService {
   );
 
   Future<void> cancel(int id) => _plugin.cancel(id: id);
+
+  // ---------------------------------------------------------------------------
+  // Cuidador
+  // ---------------------------------------------------------------------------
+
+  /// Alerta de um idoso vinculado (queda, falta de resposta, emergência).
+  Future<void> showCaregiverAlert({
+    required String tag,
+    required String title,
+    required String body,
+    required bool urgent,
+  }) => _plugin.show(
+    id: caregiverAlertId(tag),
+    title: title,
+    body: body,
+    notificationDetails: NotificationDetails(
+      android: AndroidNotificationDetails(
+        _caregiverChannel.id,
+        _caregiverChannel.name,
+        channelDescription: _caregiverChannel.description,
+        importance: urgent ? Importance.max : Importance.high,
+        priority: urgent ? Priority.max : Priority.high,
+        category: urgent
+            ? AndroidNotificationCategory.alarm
+            : AndroidNotificationCategory.status,
+        tag: tag,
+        styleInformation: BigTextStyleInformation(body),
+      ),
+      iOS: DarwinNotificationDetails(
+        threadIdentifier: tag.split('-').first,
+        interruptionLevel: urgent
+            ? InterruptionLevel.timeSensitive
+            : InterruptionLevel.active,
+      ),
+    ),
+  );
 
   // ---------------------------------------------------------------------------
   // Lembretes de medicamentos

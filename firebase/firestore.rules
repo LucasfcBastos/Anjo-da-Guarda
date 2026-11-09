@@ -1,0 +1,151 @@
+rules_version = '2';
+
+// Regras do Anjo da Guarda.
+// - users/{uid}: perfil; só o próprio usuário lê e escreve.
+// - linkCodes/{code}: código temporário gerado pelo idoso.
+// - links/{elderId}_{caregiverId}: pedido/vínculo; o idoso aprova.
+// - elders/{elderId} e alerts: status, localização e alertas do idoso;
+//   leitura só pelo próprio idoso e por cuidadores com vínculo ATIVO.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(uid) {
+      return signedIn() && request.auth.uid == uid;
+    }
+
+    function profileOf(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data;
+    }
+
+    function hasRole(role) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && profileOf(request.auth.uid).role == role;
+    }
+
+    function linkPath(elderId, caregiverId) {
+      return /databases/$(database)/documents/links/$(elderId + '_' + caregiverId);
+    }
+
+    function isActiveCaregiverOf(elderId) {
+      return signedIn()
+        && exists(linkPath(elderId, request.auth.uid))
+        && get(linkPath(elderId, request.auth.uid)).data.status == 'active';
+    }
+
+    function canSeeElder(elderId) {
+      return isSelf(elderId) || isActiveCaregiverOf(elderId);
+    }
+
+    function validName(name) {
+      return name is string && name.size() > 0 && name.size() <= 80;
+    }
+
+    function onlyChanged(keys) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+    }
+
+    // O código existe, pertence ao idoso informado e ainda não expirou.
+    function validCode(code, elderId, elderName) {
+      let path = /databases/$(database)/documents/linkCodes/$(code);
+      let data = get(path).data;
+      return exists(path)
+        && data.elderId == elderId
+        && data.elderName == elderName
+        && data.expiresAt > request.time;
+    }
+
+    match /users/{uid} {
+      allow read: if isSelf(uid);
+      allow create: if isSelf(uid)
+        && request.resource.data.keys().hasOnly(['name', 'email', 'role', 'createdAt'])
+        && validName(request.resource.data.name)
+        && request.resource.data.role in ['elder', 'caregiver']
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.createdAt == request.time;
+      // O tipo de conta não pode ser trocado depois do cadastro.
+      allow update: if isSelf(uid)
+        && onlyChanged(['name'])
+        && validName(request.resource.data.name);
+      allow delete: if false;
+
+      // Tokens de push (FCM) de cada aparelho do usuário.
+      match /devices/{token} {
+        allow read, write: if isSelf(uid);
+      }
+    }
+
+    match /linkCodes/{code} {
+      // Quem tem o código pode consultá-lo; ninguém pode listar códigos alheios.
+      allow get: if signedIn();
+      allow list: if signedIn() && resource.data.elderId == request.auth.uid;
+      allow create: if hasRole('elder')
+        && code.matches('^[A-HJ-NP-Z2-9]{6}$')
+        && request.resource.data.keys().hasOnly(['elderId', 'elderName', 'createdAt', 'expiresAt'])
+        && request.resource.data.elderId == request.auth.uid
+        && request.resource.data.elderName == profileOf(request.auth.uid).name
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.expiresAt is timestamp
+        && request.resource.data.expiresAt > request.time
+        && request.resource.data.expiresAt <= request.time + duration.value(31, 'm');
+      allow update: if false;
+      allow delete: if signedIn() && resource.data.elderId == request.auth.uid;
+    }
+
+    match /links/{linkId} {
+      function isParticipant(data) {
+        return data.elderId == request.auth.uid || data.caregiverId == request.auth.uid;
+      }
+
+      // resource == null: permite verificar se um pedido ainda não existe.
+      allow get: if signedIn() && (resource == null || isParticipant(resource.data));
+      allow list: if signedIn() && isParticipant(resource.data);
+
+      // Só um cuidador, com um código válido, cria um pedido pendente para si.
+      allow create: if hasRole('caregiver')
+        && request.resource.data.keys().hasOnly(['elderId', 'caregiverId', 'elderName', 'caregiverName', 'status', 'code', 'createdAt'])
+        && request.resource.data.caregiverId == request.auth.uid
+        && linkId == request.resource.data.elderId + '_' + request.auth.uid
+        && request.resource.data.status == 'pending'
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.caregiverName == profileOf(request.auth.uid).name
+        && request.resource.data.code is string
+        && validCode(request.resource.data.code, request.resource.data.elderId, request.resource.data.elderName);
+
+      // Só o idoso aprova o pedido.
+      allow update: if signedIn()
+        && resource.data.elderId == request.auth.uid
+        && resource.data.status == 'pending'
+        && request.resource.data.status == 'active'
+        && request.resource.data.approvedAt == request.time
+        && onlyChanged(['status', 'approvedAt']);
+
+      // Qualquer um dos dois pode desfazer o vínculo.
+      allow delete: if signedIn() && isParticipant(resource.data);
+    }
+
+    match /elders/{elderId} {
+      allow read: if canSeeElder(elderId);
+      allow create, update, delete: if isSelf(elderId);
+
+      match /alerts/{alertId} {
+        allow read: if canSeeElder(elderId);
+        allow create: if isSelf(elderId)
+          && request.resource.data.type in ['fall', 'manual']
+          && request.resource.data.status in ['awaiting', 'emergency'];
+        // O idoso atualiza seus alertas; o cuidador só marca como atendido.
+        allow update: if isSelf(elderId)
+          || (isActiveCaregiverOf(elderId)
+            && request.resource.data.status == 'resolved'
+            && request.resource.data.resolvedBy == request.auth.uid
+            && request.resource.data.resolvedAt == request.time
+            && onlyChanged(['status', 'resolvedBy', 'resolvedByName', 'resolvedAt']));
+        allow delete: if false;
+      }
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "name": "anjo-da-guarda-functions",
+  "private": true,
+  "description": "Envia push aos cuidadores quando há queda ou pedido de ajuda",
+  "main": "index.js",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "deploy": "firebase deploy --only functions"
+  },
+  "dependencies": {
+    "firebase-admin": "^14.5.0",
+    "firebase-functions": "^7.4.0"
+  }
+}

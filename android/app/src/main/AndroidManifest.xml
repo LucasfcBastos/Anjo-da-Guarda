@@ -1,7 +1,15 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Firebase (login, Firestore, push) e mapa do cuidador -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <!-- GPS (geolocator) -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <!-- Localização do idoso em segundo plano: serviço em primeiro plano do
+         geolocator, com notificação fixa "Anjo da Guarda ativo".
+         Não pedimos ACCESS_BACKGROUND_LOCATION ("permitir o tempo todo"). -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
 
     <!-- Notificações locais (flutter_local_notifications) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -56,6 +64,11 @@
         </receiver>
         <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ActionBroadcastReceiver" />
 
+        <!-- Push (FCM) do cuidador usa o canal criado pelo NotificationService. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="cuidador_alertas" />
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
@@ -71,6 +84,11 @@
         <!-- image_picker: permite encontrar o app de câmera no Android 11+ -->
         <intent>
             <action android:name="android.media.action.IMAGE_CAPTURE" />
+        </intent>
+        <!-- url_launcher: abrir a localização no Google Maps / navegador -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
         </intent>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>

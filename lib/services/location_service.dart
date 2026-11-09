@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 
 /// Motivos pelos quais a localização pode falhar.
@@ -24,7 +25,8 @@ class LocationService {
     }
   }
 
-  Future<Position> getCurrentPosition() async {
+  /// GPS ligado e permissão concedida; senão lança [LocationException].
+  Future<void> ensureReady() async {
     if (!await Geolocator.isLocationServiceEnabled()) {
       throw const LocationException(
         LocationIssue.serviceDisabled,
@@ -48,7 +50,10 @@ class LocationService {
         'Permissão de localização bloqueada. Libere nas configurações do app.',
       );
     }
+  }
 
+  Future<Position> getCurrentPosition() async {
+    await ensureReady();
     try {
       return await Geolocator.getCurrentPosition(
         locationSettings: const LocationSettings(
@@ -70,6 +75,64 @@ class LocationService {
         'Erro ao obter localização: $e',
       );
     }
+  }
+
+  /// Posições contínuas para enviar ao cuidador.
+  /// - Android: roda num serviço em primeiro plano (notificação fixa),
+  ///   o que permite continuar com o app em segundo plano.
+  /// - iOS: atualizações em segundo plano com o indicador azul de
+  ///   localização; o sistema ainda pode encerrar o app.
+  /// Chame [ensureReady] antes, com o app aberto.
+  Stream<Position> trackPositions() {
+    final LocationSettings settings;
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      settings = AndroidSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 20,
+        intervalDuration: const Duration(seconds: 60),
+        foregroundNotificationConfig: const ForegroundNotificationConfig(
+          notificationTitle: 'Anjo da Guarda ativo',
+          notificationText:
+              'Compartilhando sua localização com seus cuidadores.',
+          notificationChannelName: 'Localização em segundo plano',
+          setOngoing: true,
+          enableWakeLock: true,
+        ),
+      );
+    } else if (!kIsWeb && defaultTargetPlatform == TargetPlatform.iOS) {
+      settings = AppleSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 20,
+        activityType: ActivityType.other,
+        pauseLocationUpdatesAutomatically: false,
+        allowBackgroundLocationUpdates: true,
+        showBackgroundLocationIndicator: true,
+      );
+    } else {
+      settings = const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 20,
+      );
+    }
+    return Geolocator.getPositionStream(locationSettings: settings)
+        .handleError((Object e) {
+          if (e is LocationServiceDisabledException) {
+            throw const LocationException(
+              LocationIssue.serviceDisabled,
+              'O GPS do celular está desligado. Ative a localização.',
+            );
+          }
+          if (e is PermissionDeniedException) {
+            throw const LocationException(
+              LocationIssue.denied,
+              'Permissão de localização negada.',
+            );
+          }
+          throw LocationException(
+            LocationIssue.unavailable,
+            'Erro ao acompanhar a localização: $e',
+          );
+        });
   }
 
   /// Abre a tela de configuração adequada para resolver o problema.

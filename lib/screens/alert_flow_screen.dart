@@ -249,9 +249,9 @@ class _EmergencyView extends StatelessWidget {
   }
 }
 
-/// Demonstração do alerta familiar: mostra a mensagem que seria enviada.
-/// Não há envio automático (o app não tem servidor/SMS configurado);
-/// a mensagem pode ser copiada e colada em qualquer aplicativo.
+/// Dados do alerta em texto. Os cuidadores vinculados recebem o alerta
+/// pelo app (Firestore); a mensagem também pode ser copiada e enviada
+/// por SMS/WhatsApp para quem não usa o app.
 class _FamilyMessageCard extends StatelessWidget {
   const _FamilyMessageCard({required this.alert});
 
@@ -295,8 +295,9 @@ class _FamilyMessageCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           const Text(
-            'Demonstração: o envio automático para a família exige um serviço '
-            'externo (SMS/servidor), que não está configurado neste projeto.',
+            'Os cuidadores vinculados na aba "Família" recebem este alerta '
+            'pelo app quando o celular tem internet. Para avisar outras '
+            'pessoas, copie a mensagem e envie por SMS ou WhatsApp.',
             style: TextStyle(fontSize: 15, color: Colors.black54),
           ),
         ],

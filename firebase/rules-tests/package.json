@@ -1,0 +1,13 @@
+{
+  "name": "anjo-da-guarda-rules-tests",
+  "private": true,
+  "description": "Testes das regras do Firestore no emulador",
+  "type": "module",
+  "scripts": {
+    "test": "firebase emulators:exec --only firestore --project demo-anjo \"node --test\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.2",
+    "firebase": "^12.19.0"
+  }
+}

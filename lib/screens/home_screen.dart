@@ -14,11 +14,15 @@ class HomeScreen extends StatelessWidget {
     required this.safety,
     required this.medications,
     required this.onOpenTab,
+    this.connectionPanel,
   });
 
   final SafetyController safety;
   final MedicationController medications;
   final ValueChanged<int> onOpenTab;
+
+  /// GPS e conexão com o cuidador (só quando logado como idoso).
+  final Widget? connectionPanel;
 
   @override
   Widget build(BuildContext context) {
@@ -44,6 +48,10 @@ class HomeScreen extends StatelessWidget {
                     ? safety.stopMonitoring
                     : safety.startMonitoring,
               ),
+              if (connectionPanel != null) ...[
+                const SizedBox(height: 16),
+                connectionPanel!,
+              ],
               const SizedBox(height: 16),
               InfoCard(
                 icon: Icons.medication,
@@ -55,13 +63,16 @@ class HomeScreen extends StatelessWidget {
                       : '${next.name} às ${next.timeLabel}',
                 ),
               ),
-              const SizedBox(height: 12),
-              InfoCard(
-                icon: Icons.location_on,
-                title: 'Minha localização',
-                onTap: () => onOpenTab(2),
-                child: const Text('Ver coordenadas GPS'),
-              ),
+              // Com o painel de conexão, o GPS já aparece acima.
+              if (connectionPanel == null) ...[
+                const SizedBox(height: 12),
+                InfoCard(
+                  icon: Icons.location_on,
+                  title: 'Minha localização',
+                  onTap: () => onOpenTab(2),
+                  child: const Text('Ver coordenadas GPS'),
+                ),
+              ],
               const SizedBox(height: 12),
               InfoCard(
                 icon: Icons.sensors,
