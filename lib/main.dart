@@ -1,44 +1,37 @@
 import 'package:flutter/material.dart';
 
-void main() {
-  runApp(const MyApp());
-}
+import 'app.dart';
+import 'controllers/medication_controller.dart';
+import 'controllers/safety_controller.dart';
+import 'services/location_service.dart';
+import 'services/medication_repository.dart';
+import 'services/notification_service.dart';
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
 
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Rota Verde',
-      debugShowCheckedModeBanner: false,
-      // Tema escuro sempre ativo
-      themeMode: ThemeMode.dark,
-      darkTheme: ThemeData(
-        brightness: Brightness.dark,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.green,
-          brightness: Brightness.dark,
-        ),
-        useMaterial3: true,
-      ),
-      home: const HelloWorldPage(),
-    );
-  }
-}
+  // Serviços (acesso ao hardware e ao armazenamento).
+  final notifications = NotificationService();
+  await notifications.init();
+  final location = LocationService();
 
-class HelloWorldPage extends StatelessWidget {
-  const HelloWorldPage({super.key});
+  // Controladores (regras do app que ligam os serviços).
+  final safety = SafetyController(
+    notifications: notifications,
+    location: location,
+  );
+  final medications = MedicationController(
+    repository: MedicationRepository(),
+    notifications: notifications,
+  );
+  await medications.load();
 
-  @override
-  Widget build(BuildContext context) {
-    return const Scaffold(
-      body: Center(
-        child: Text(
-          'Hello World',
-          style: TextStyle(fontSize: 36, fontWeight: FontWeight.bold),
-        ),
-      ),
-    );
-  }
+  runApp(
+    AnjoDaGuardaApp(
+      safety: safety,
+      medications: medications,
+      notifications: notifications,
+      location: location,
+    ),
+  );
 }
